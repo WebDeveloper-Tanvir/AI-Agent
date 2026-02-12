@@ -72,7 +72,7 @@ export function Chart({ type, data, title, xAxis, yAxis }: ChartProps) {
         );
       
       default:
-        return null;
+        return <div>Unsupported chart type</div>;
     }
   };
 
