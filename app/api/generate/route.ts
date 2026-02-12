@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AIAgent } from '@/lib/agent';
+import { AIAgent } from '@lib/agent';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,11 +12,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json(
-        { error: 'ANTHROPIC_API_KEY is not configured' },
-        { status: 500 }
-      );
+    // Check if custom LLM endpoint is configured
+    if (!process.env.CUSTOM_LLM_ENDPOINT) {
+      console.warn('CUSTOM_LLM_ENDPOINT not configured, using default endpoint');
     }
 
     const agent = new AIAgent();

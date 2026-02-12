@@ -1,10 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { COMPONENT_LIBRARY, validateComponentUsage } from './components';
 import { GenerationPlan, GenerationResult, AgentStep } from '@/types';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// Custom LLM endpoint configuration
+const CUSTOM_LLM_ENDPOINT = process.env.CUSTOM_LLM_ENDPOINT || 'https://nontemporary-taxidermic-gwen.ngrok-free.dev/';
 
 // Step 1: Planner Prompt
 const PLANNER_PROMPT = `You are a UI planning agent. Your job is to analyze user intent and create a structured plan for UI generation.
@@ -71,6 +69,42 @@ Explain:
 
 Be concise but informative. Write 2-4 sentences.`;
 
+// Helper function to call custom LLM endpoint
+async function callCustomLLM(prompt: string, maxTokens: number = 1024): Promise<string> {
+  try {
+    const response = await fetch(CUSTOM_LLM_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        max_tokens: maxTokens,
+        temperature: 0.7,
+        // Add any other parameters your model expects
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`LLM API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    // Adjust this based on your API's response format
+    // Common formats:
+    // - { response: "..." }
+    // - { text: "..." }
+    // - { completion: "..." }
+    // - { choices: [{ text: "..." }] }
+    
+    return data.response || data.text || data.completion || data.choices?.[0]?.text || '';
+  } catch (error) {
+    console.error('Custom LLM API Error:', error);
+    throw new Error(`Failed to call custom LLM: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 export class AIAgent {
   private steps: AgentStep[] = [];
 
@@ -113,19 +147,8 @@ export class AIAgent {
       ? `\n\nExisting UI code (modify this, don't regenerate from scratch):\n${existingCode}`
       : '';
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: `${PLANNER_PROMPT}\n\nUser Intent: ${userIntent}${context}`,
-        },
-      ],
-    });
-
-    const content = message.content[0];
-    const planText = content.type === 'text' ? content.text : '';
+    const prompt = `${PLANNER_PROMPT}\n\nUser Intent: ${userIntent}${context}`;
+    const planText = await callCustomLLM(prompt, 1024);
     
     this.steps.push({
       step: 'planner',
@@ -153,19 +176,8 @@ export class AIAgent {
       ? `\n\nEXISTING CODE (modify this incrementally):\n${existingCode}\n\nModify the existing code based on the new plan. Keep what works, change only what's needed.`
       : '';
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
-          content: `${GENERATOR_PROMPT}\n\nUser Intent: ${userIntent}\n\nPlan:\n${planText}${context}`,
-        },
-      ],
-    });
-
-    const content = message.content[0];
-    const code = content.type === 'text' ? content.text : '';
+    const prompt = `${GENERATOR_PROMPT}\n\nUser Intent: ${userIntent}\n\nPlan:\n${planText}${context}`;
+    const code = await callCustomLLM(prompt, 4096);
     
     this.steps.push({
       step: 'generator',
@@ -188,19 +200,8 @@ export class AIAgent {
     plan: GenerationPlan,
     code: string
   ): Promise<string> {
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 512,
-      messages: [
-        {
-          role: 'user',
-          content: `${EXPLAINER_PROMPT}\n\nUser Intent: ${userIntent}\n\nPlan: ${JSON.stringify(plan)}\n\nGenerated Code:\n${code.substring(0, 500)}...`,
-        },
-      ],
-    });
-
-    const content = message.content[0];
-    const explanation = content.type === 'text' ? content.text : '';
+    const prompt = `${EXPLAINER_PROMPT}\n\nUser Intent: ${userIntent}\n\nPlan: ${JSON.stringify(plan)}\n\nGenerated Code:\n${code.substring(0, 500)}...`;
+    const explanation = await callCustomLLM(prompt, 512);
     
     this.steps.push({
       step: 'explainer',
@@ -215,9 +216,9 @@ export class AIAgent {
   private extractComponentUsage(code: string): string[] {
     const components = new Set<string>();
     const pattern = /<(\w+)[\s>]/g;
-    const matches = [...code.matchAll(pattern)];
+    let match: RegExpExecArray | null;
 
-    for (const match of matches) {
+    while ((match = pattern.exec(code)) !== null) {
       const componentName = match[1];
       if (Object.keys(COMPONENT_LIBRARY).includes(componentName)) {
         components.add(componentName);
