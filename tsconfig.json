@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "ES2020",
     "lib": [
       "dom",
       "dom.iterable",
@@ -19,9 +19,11 @@
     "jsx": "preserve",
     "incremental": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@lib/*": ["./lib/*"],
+      "@lib": ["./lib"],
+      "@types/*": ["./types/*"],
+      "@types": ["./types"],
+      "@/*": ["./*"]
     },
     "plugins": [
       {
