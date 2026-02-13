@@ -154,7 +154,7 @@ export class AIAgent {
       step: 'planner',
       input: userIntent,
       output: planText,
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
     });
 
     // Parse JSON response
@@ -207,7 +207,7 @@ export class AIAgent {
       step: 'explainer',
       input: 'Generate explanation',
       output: explanation,
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
     });
 
     return explanation;
