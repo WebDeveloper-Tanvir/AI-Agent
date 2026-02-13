@@ -1,11 +1,13 @@
 'use client';
-
 import { useState } from 'react';
 import ChatPanel from '@/components/ChatPanel';
 import CodeEditor from '@/components/CodeEditor';
 import Preview from '@/components/Preview';
 import { ChatMessage } from '@/types';
 import toast from 'react-hot-toast';
+
+// ✅ FIX: Add backend URL configuration
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -25,16 +27,20 @@ export default function Home() {
     const userMessage: ChatMessage = {
       role: 'user',
       content: input,
-      timestamp: new Date().toISOString(), // ✅ String timestamp
+      timestamp: new Date().toISOString(),
     };
-
     setMessages(prev => [...prev, userMessage]);
+
     const promptToSend = input;
     setInput('');
     setIsGenerating(true);
 
     try {
-      const response = await fetch('/api/generate', {
+      // ✅ FIX: Use full backend URL instead of relative path
+      const apiUrl = `${BACKEND_URL}/api/generate`;
+      console.log('🔗 Calling backend:', apiUrl); // Debug log
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,8 +52,14 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        let errorMessage = `Backend error: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.error || errorMessage;
+        } catch {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -55,9 +67,8 @@ export default function Home() {
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: data.explanation || 'UI generated successfully!',
-        timestamp: new Date().toISOString(), // ✅ String timestamp
+        timestamp: new Date().toISOString(),
       };
-
       setMessages(prev => [...prev, assistantMessage]);
       
       if (data.code) {
@@ -67,14 +78,13 @@ export default function Home() {
       } else {
         toast.error('No code received from backend');
       }
-
     } catch (error) {
       console.error('Generation error:', error);
       
       const errorMessage: ChatMessage = {
         role: 'assistant',
         content: `Error: ${error instanceof Error ? error.message : 'Failed to generate UI. Please try again.'}`,
-        timestamp: new Date().toISOString(), // ✅ String timestamp
+        timestamp: new Date().toISOString(),
       };
       
       setMessages(prev => [...prev, errorMessage]);
@@ -91,6 +101,10 @@ export default function Home() {
         <div className="p-4 border-b border-gray-200">
           <h1 className="text-xl font-bold text-gray-900">AI UI Generator</h1>
           <p className="text-sm text-gray-500">Describe your UI and watch it come to life</p>
+          {/* ✅ Show backend status */}
+          <p className="text-xs text-gray-400 mt-1">
+            Backend: {BACKEND_URL}
+          </p>
         </div>
         <ChatPanel
           messages={messages}
