@@ -15,17 +15,7 @@ export default function Home() {
   const [currentCode, setCurrentCode] = useState('');
 
   const handleSend = async () => {
-    // DEBUG: Log what we're about to send
-    console.log('=== handleSend called ===');
-    console.log('Input value:', input);
-    console.log('Input length:', input.length);
-    console.log('Input trimmed:', input.trim());
-    console.log('Is generating:', isGenerating);
-    console.log('=======================');
-
-    // Validation
     if (!input || !input.trim() || isGenerating) {
-      console.warn('⚠️ Validation failed - not sending request');
       if (!input.trim()) {
         toast.error('Please enter a prompt');
       }
@@ -35,58 +25,41 @@ export default function Home() {
     const userMessage: ChatMessage = {
       role: 'user',
       content: input,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString(), // ✅ String timestamp
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const promptToSend = input; // Store the prompt before clearing
-    setInput(''); // Clear input
+    const promptToSend = input;
+    setInput('');
     setIsGenerating(true);
 
     try {
-      console.log('📤 Sending request to /api/generate');
-      console.log('Payload:', {
-        prompt: promptToSend,
-        currentCode: currentCode || null,
-      });
-
-      // Call the Next.js API route
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          prompt: promptToSend,  // Make sure we send the stored prompt
+          prompt: promptToSend,
           currentCode: currentCode || null,
         }),
       });
 
-      console.log('📥 Response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('❌ Error response:', errorData);
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('✅ Success! Data received:', {
-        hasCode: !!data.code,
-        codeLength: data.code?.length,
-        hasExplanation: !!data.explanation,
-      });
 
-      // Add assistant response to chat
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: data.explanation || 'UI generated successfully!',
-        timestamp: Date.now(),
+        timestamp: new Date().toISOString(), // ✅ String timestamp
       };
 
       setMessages(prev => [...prev, assistantMessage]);
       
-      // Update the generated code
       if (data.code) {
         setGeneratedCode(data.code);
         setCurrentCode(data.code);
@@ -96,19 +69,18 @@ export default function Home() {
       }
 
     } catch (error) {
-      console.error('❌ Generation error:', error);
+      console.error('Generation error:', error);
       
       const errorMessage: ChatMessage = {
         role: 'assistant',
         content: `Error: ${error instanceof Error ? error.message : 'Failed to generate UI. Please try again.'}`,
-        timestamp: Date.now(),
+        timestamp: new Date().toISOString(), // ✅ String timestamp
       };
       
       setMessages(prev => [...prev, errorMessage]);
       toast.error(error instanceof Error ? error.message : 'Failed to generate UI');
     } finally {
       setIsGenerating(false);
-      console.log('✅ Request completed');
     }
   };
 
@@ -119,10 +91,6 @@ export default function Home() {
         <div className="p-4 border-b border-gray-200">
           <h1 className="text-xl font-bold text-gray-900">AI UI Generator</h1>
           <p className="text-sm text-gray-500">Describe your UI and watch it come to life</p>
-          {/* DEBUG INFO */}
-          <div className="mt-2 text-xs text-gray-400">
-            Backend: {process.env.NEXT_PUBLIC_BACKEND_URL || 'Not set'}
-          </div>
         </div>
         <ChatPanel
           messages={messages}
