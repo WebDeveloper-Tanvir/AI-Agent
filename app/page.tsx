@@ -81,7 +81,7 @@ export default function Home() {
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: data.explanation || 'UI generated successfully!',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -101,7 +101,7 @@ export default function Home() {
       const errorMessage: ChatMessage = {
         role: 'assistant',
         content: `Error: ${error instanceof Error ? error.message : 'Failed to generate UI. Please try again.'}`,
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       };
       
       setMessages(prev => [...prev, errorMessage]);
