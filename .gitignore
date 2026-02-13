@@ -1,1 +1,1 @@
-NEXT_PUBLIC_BACKEND_URL='http://localhost:8000'
+NEXT_PUBLIC_BACKEND_URL='https://ai-agent-production-ca53.up.railway.app/'
