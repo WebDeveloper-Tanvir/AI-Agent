@@ -183,7 +183,7 @@ export class AIAgent {
       step: 'generator',
       input: planText,
       output: code,
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
     });
 
     // Extract the component code
