@@ -1,34 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AIAgent } from '@lib/agent';
 
-export async function POST(request: NextRequest) {
+// app/api/generate/route.ts
+export async function POST(req: Request) {
+  const { prompt, currentCode } = await req.json();
+  
+  // Call your Railway FastAPI backend
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://your-app-name.up.railway.app';
+  
   try {
-    const { userIntent, existingCode } = await request.json();
-
-    if (!userIntent) {
-      return NextResponse.json(
-        { error: 'User intent is required' },
-        { status: 400 }
-      );
-    }
-
-    // Check if custom LLM endpoint is configured
-    if (!process.env.CUSTOM_LLM_ENDPOINT) {
-      console.warn('CUSTOM_LLM_ENDPOINT not configured, using default endpoint');
-    }
-
-    const agent = new AIAgent();
-    const result = await agent.generateUI(userIntent, existingCode);
-
-    return NextResponse.json({
-      success: true,
-      result,
-      steps: agent.getSteps(),
+    const response = await fetch(`${BACKEND_URL}/api/v1/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        current_code: currentCode || null,
+      }),
     });
-  } catch (error: any) {
-    console.error('Generation error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to generate UI' },
+
+    if (!response.ok) {
+      throw new Error(`Backend error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    return Response.json({
+      code: data.code,
+      explanation: data.explanation,
+      plan: data.plan,
+    });
+  } catch (error) {
+    console.error('Backend integration error:', error);
+    return Response.json(
+      { error: 'Failed to generate UI' },
       { status: 500 }
     );
   }
