@@ -15,7 +15,22 @@ export default function Home() {
   const [currentCode, setCurrentCode] = useState('');
 
   const handleSend = async () => {
-    if (!input.trim() || isGenerating) return;
+    // DEBUG: Log what we're about to send
+    console.log('=== handleSend called ===');
+    console.log('Input value:', input);
+    console.log('Input length:', input.length);
+    console.log('Input trimmed:', input.trim());
+    console.log('Is generating:', isGenerating);
+    console.log('=======================');
+
+    // Validation
+    if (!input || !input.trim() || isGenerating) {
+      console.warn('⚠️ Validation failed - not sending request');
+      if (!input.trim()) {
+        toast.error('Please enter a prompt');
+      }
+      return;
+    }
 
     const userMessage: ChatMessage = {
       role: 'user',
@@ -24,28 +39,43 @@ export default function Home() {
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    const promptToSend = input; // Store the prompt before clearing
+    setInput(''); // Clear input
     setIsGenerating(true);
 
     try {
-      // Call the Next.js API route (which calls your FastAPI backend)
+      console.log('📤 Sending request to /api/generate');
+      console.log('Payload:', {
+        prompt: promptToSend,
+        currentCode: currentCode || null,
+      });
+
+      // Call the Next.js API route
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          prompt: input,
-          currentCode: currentCode || null, // Send existing code for modifications
+          prompt: promptToSend,  // Make sure we send the stored prompt
+          currentCode: currentCode || null,
         }),
       });
 
+      console.log('📥 Response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate UI');
+        console.error('❌ Error response:', errorData);
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('✅ Success! Data received:', {
+        hasCode: !!data.code,
+        codeLength: data.code?.length,
+        hasExplanation: !!data.explanation,
+      });
 
       // Add assistant response to chat
       const assistantMessage: ChatMessage = {
@@ -57,13 +87,16 @@ export default function Home() {
       setMessages(prev => [...prev, assistantMessage]);
       
       // Update the generated code
-      setGeneratedCode(data.code);
-      setCurrentCode(data.code);
-      
-      toast.success('UI generated successfully!');
+      if (data.code) {
+        setGeneratedCode(data.code);
+        setCurrentCode(data.code);
+        toast.success('UI generated successfully!');
+      } else {
+        toast.error('No code received from backend');
+      }
 
     } catch (error) {
-      console.error('Generation error:', error);
+      console.error('❌ Generation error:', error);
       
       const errorMessage: ChatMessage = {
         role: 'assistant',
@@ -72,9 +105,10 @@ export default function Home() {
       };
       
       setMessages(prev => [...prev, errorMessage]);
-      toast.error('Failed to generate UI');
+      toast.error(error instanceof Error ? error.message : 'Failed to generate UI');
     } finally {
       setIsGenerating(false);
+      console.log('✅ Request completed');
     }
   };
 
@@ -85,6 +119,10 @@ export default function Home() {
         <div className="p-4 border-b border-gray-200">
           <h1 className="text-xl font-bold text-gray-900">AI UI Generator</h1>
           <p className="text-sm text-gray-500">Describe your UI and watch it come to life</p>
+          {/* DEBUG INFO */}
+          <div className="mt-2 text-xs text-gray-400">
+            Backend: {process.env.NEXT_PUBLIC_BACKEND_URL || 'Not set'}
+          </div>
         </div>
         <ChatPanel
           messages={messages}
