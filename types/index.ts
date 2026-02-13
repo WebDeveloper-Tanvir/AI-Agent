@@ -22,13 +22,13 @@ export interface GenerationResult {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
-  timestamp: string;
+  timestamp: number;
 }
 
 export interface Version {
   id: string;
   code: string;
-  timestamp: string;
+  timestamp: number;
   userPrompt: string;
   plan: GenerationPlan;
   explanation: string;
@@ -38,5 +38,5 @@ export interface AgentStep {
   step: 'planner' | 'generator' | 'explainer';
   input: string;
   output: string;
-  timestamp: string;
+  timestamp: number;
 }
