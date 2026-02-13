@@ -16,9 +16,10 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('🤖 Using rule-based generator...');
+    console.log('🔗 Backend URL:', BACKEND_URL);
 
-    // Call your rule-based backend
-    const response = await fetch(`${BACKEND_URL}/api/v1/generate`, {
+    // ✅ FIX: Use parentheses, not backticks for fetch
+    const response = await fetch(`${BACKEND_URL}/api/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -30,20 +31,25 @@ export async function POST(req: NextRequest) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Generation failed');
+      let errorMessage = `Backend error: ${response.status}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || error.error || errorMessage;
+      } catch {
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
-
+    
     return NextResponse.json({
       code: data.code,
       explanation: data.explanation,
       plan: data.plan,
     });
-
   } catch (error: any) {
-    console.error('Generation error:', error);
+    console.error('❌ Generation error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to generate UI' },
       { status: 500 }
@@ -53,12 +59,25 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
+    console.log('🏥 Health check - Backend URL:', BACKEND_URL);
+    
+    // ✅ FIX: Use parentheses, not backticks for fetch
     const response = await fetch(`${BACKEND_URL}/health`);
+    
+    if (!response.ok) {
+      throw new Error(`Backend returned ${response.status}`);
+    }
+    
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
+    console.error('❌ Health check failed:', error);
     return NextResponse.json(
-      { status: 'error', error: 'Backend not reachable' },
+      { 
+        status: 'error', 
+        error: 'Backend not reachable',
+        backend_url: BACKEND_URL 
+      },
       { status: 503 }
     );
   }
